@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Story {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      StoryStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  chapters    Chapter[]
+  donations   Donation[]
+  
+  @@map("stories")
+}
+
+model Chapter {
+  id              String        @id @default(cuid())
+  content         String        @db.Text
+  authorPseudonym String
+  status          ChapterStatus @default(PENDING)
+  wordCount       Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  storyId         String
+  story           Story         @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  donation        Donation?
+  
+  @@map("chapters")
+}
+
+model Donation {
+  id              String          @id @default(cuid())
+  amount          Float           @default(1.00)
+  currency        String          @default("EUR")
+  stripePaymentId String          @unique
+  status          DonationStatus  @default(PENDING)
+  authorEmail     String?
+  authorPseudonym String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  storyId         String
+  story           Story           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  
+  chapterId       String?         @unique
+  chapter         Chapter?        @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  
+  @@map("donations")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  pseudonym String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("users")
+}
+
+model AIModeration {
+  id          String            @id @default(cuid())
+  chapterId   String            @unique
+  result      ModerationResult
+  reason      String?
+  confidence  Float
+  createdAt   DateTime          @default(now())
+  
+  @@map("ai_moderations")
+}
+
+model StoryStats {
+  id              String   @id @default(cuid())
+  storyId         String   @unique
+  totalChapters   Int      @default(0)
+  totalDonations  Float    @default(0)
+  totalWords      Int      @default(0)
+  lastUpdated     DateTime @default(now())
+  
+  @@map("story_stats")
+}
+
+enum StoryStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+}
+
+enum ChapterStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ModerationResult {
+  APPROVED
+  REJECTED
+  FLAGGED
+}
